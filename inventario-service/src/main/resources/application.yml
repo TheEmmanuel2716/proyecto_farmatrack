@@ -1,0 +1,34 @@
+spring:
+  application:
+    name: inventario-service
+  sql:
+    init:
+      mode: always
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:farmatrack}?currentSchema=${DB_SCHEMA:inventario}
+    username: ${DB_USERNAME:farmatrack}
+    password: ${DB_PASSWORD:farmatrack_dev}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    defer-datasource-initialization: true
+    properties:
+      hibernate:
+        default_schema: ${DB_SCHEMA:inventario}
+    open-in-view: false
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      acks: all
+      properties:
+        spring.json.add.type.headers: false
+server:
+  port: ${SERVER_PORT:8081}
+security:
+  jwt:
+    secret: ${JWT_SECRET:dev-only-secret-change-me-32-bytes}
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs

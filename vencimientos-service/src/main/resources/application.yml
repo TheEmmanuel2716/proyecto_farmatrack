@@ -1,0 +1,43 @@
+spring:
+  application:
+    name: vencimientos-service
+  sql:
+    init:
+      mode: always
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:farmatrack}?currentSchema=${DB_SCHEMA:vencimientos}
+    username: ${DB_USERNAME:farmatrack}
+    password: ${DB_PASSWORD:farmatrack_dev}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        default_schema: ${DB_SCHEMA:vencimientos}
+    open-in-view: false
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    topic: ${KAFKA_TOPIC:inventario-eventos}
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP:vencimientos-service}
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      properties:
+        spring.json.trusted.packages: com.farmatrack
+  jackson:
+    property-naming-strategy: LOWER_CAMEL_CASE
+server:
+  port: ${SERVER_PORT:8082}
+security:
+  jwt:
+    secret: ${JWT_SECRET:dev-only-secret-change-me-32-bytes}
+    issuer: ${JWT_ISSUER:}
+    audience: ${JWT_AUDIENCE:}
+vencimientos:
+  alertas:
+    cron: ${ALERTAS_CRON:0 0 * * * *}
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs

@@ -1,0 +1,105 @@
+type Query {
+    proveedores(page: Int = 0, size: Int = 20): [Proveedor!]!
+    productos(page: Int = 0, size: Int = 20): [Producto!]!
+    producto(id: ID!): Producto
+    lotes(page: Int = 0, size: Int = 20): [Lote!]!
+    lote(id: ID!): Lote
+    estado(loteId: ID!): LoteEstado
+    alertas(atendida: Boolean, page: Int = 0, size: Int = 20): [Alerta!]!
+    movimientos(loteId: ID!, page: Int = 0, size: Int = 20): [Movimiento!]!
+    loteConAlertas(loteId: ID!): LoteConAlertas
+}
+
+type Mutation {
+    crearProveedor(input: ProveedorInput!): Proveedor
+    actualizarProveedor(id: ID!, input: ProveedorInput!): Proveedor
+    crearProducto(input: ProductoInput!): Producto
+    actualizarProducto(id: ID!, input: ProductoInput!): Producto
+    crearLote(productoId: ID!, input: LoteInput!): Lote
+    registrarVenta(loteId: ID!, input: MovimientoInput!): Movimiento
+    registrarDevolucion(loteId: ID!, input: MovimientoInput!): Movimiento
+    marcarAlertaAtendida(alertaId: ID!, atendida: Boolean!): Alerta
+}
+
+input ProveedorInput {
+    nombre: String!
+    nit: String!
+    contacto: String
+}
+
+input ProductoInput {
+    nombre: String!
+    principioActivo: String!
+    proveedorId: ID!
+}
+
+input LoteInput {
+    numeroLote: String!
+    fechaVencimiento: String!
+    cantidadInicial: Int!
+}
+
+input MovimientoInput {
+    cantidad: Int!
+    observacion: String
+}
+
+type Proveedor {
+    id: ID!
+    nombre: String!
+    nit: String!
+    contacto: String
+}
+
+type Producto {
+    id: ID!
+    nombre: String!
+    principioActivo: String!
+    proveedorId: ID!
+    proveedor: Proveedor
+}
+
+type Lote {
+    id: ID!
+    numeroLote: String!
+    fechaVencimiento: String!
+    cantidadInicial: Int!
+    productoId: ID!
+    stockActual: Int!
+    creadoEn: String!
+    producto: Producto
+    estado: LoteEstado
+}
+
+type LoteEstado {
+    id: ID!
+    loteId: ID!
+    stockActual: Int!
+    estado: String!
+    diasParaVencer: Int!
+    actualizadoEn: String!
+}
+
+type Movimiento {
+    id: ID!
+    loteId: ID!
+    tipo: String!
+    cantidad: Int!
+    fechaHora: String!
+    eventoUuid: String!
+}
+
+type Alerta {
+    id: ID!
+    loteId: ID!
+    tipoAlerta: String!
+    diasRestantes: Int!
+    generadaEn: String!
+    atendida: Boolean!
+}
+
+type LoteConAlertas {
+    lote: Lote!
+    estado: LoteEstado
+    alertas: [Alerta!]!
+}

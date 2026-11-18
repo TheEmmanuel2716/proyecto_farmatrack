@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: graphql-gateway
+  graphql:
+    path: /graphql
+    graphiql:
+      enabled: ${GRAPHIQL_ENABLED:false}
+      path: /graphiql
+server:
+  port: ${SERVER_PORT:8083}
+security:
+  jwt:
+    secret: ${JWT_SECRET:dev-only-secret-change-me-32-bytes}
+    issuer: ${JWT_ISSUER:}
+    audience: ${JWT_AUDIENCE:}
+services:
+  inventario:
+    url: ${INVENTARIO_SERVICE_URL:http://inventario-service:8081}
+  vencimientos:
+    url: ${VENCIMIENTOS_SERVICE_URL:http://vencimientos-service:8082}

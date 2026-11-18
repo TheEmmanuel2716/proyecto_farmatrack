@@ -1,0 +1,534 @@
+openapi: 3.0.3
+info:
+  title: FarmaTrack — Servicio Inventario
+  description: 'API REST para el registro de proveedores, productos, lotes y movimientos de inventario de una sola sede/farmacia.
+    Cada movimiento publica un evento en el tópico Kafka `inventario-eventos`. Este servicio es la fuente de verdad para el
+    stock y para la regla de negocio de no venta de lotes vencidos (RF8).
+
+    '
+  version: 1.0.0
+  contact:
+    name: Equipo 3 — FarmaTrack
+servers:
+- url: http://localhost:8081
+  description: Entorno local (docker compose)
+tags:
+- name: Proveedores
+- name: Productos
+- name: Lotes
+- name: Movimientos
+paths:
+  /lotes:
+    get:
+      tags:
+      - Lotes
+      summary: Listar todos los lotes registrados
+      operationId: listarLotes
+      parameters:
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Lotes registrados en el inventario
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Lote'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /proveedores:
+    post:
+      tags:
+      - Proveedores
+      summary: Registrar un nuevo proveedor
+      operationId: crearProveedor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProveedorInput'
+      responses:
+        '201':
+          description: Proveedor creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Proveedor'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    get:
+      tags:
+      - Proveedores
+      summary: Listar proveedores registrados
+      operationId: listarProveedores
+      parameters:
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Lista de proveedores
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Proveedor'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /productos:
+    post:
+      tags:
+      - Productos
+      summary: Registrar un nuevo producto
+      operationId: crearProducto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductoInput'
+      responses:
+        '201':
+          description: Producto creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Producto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: El proveedor_id referenciado no existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    get:
+      tags:
+      - Productos
+      summary: Listar productos registrados
+      operationId: listarProductos
+      parameters:
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Lista de productos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Producto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /productos/{productoId}:
+    get:
+      tags:
+      - Productos
+      summary: Consultar un producto por id
+      operationId: obtenerProducto
+      parameters:
+      - $ref: '#/components/parameters/ProductoId'
+      responses:
+        '200':
+          description: Producto encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Producto'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /productos/{productoId}/lotes:
+    post:
+      tags:
+      - Lotes
+      summary: Crear un lote nuevo para un producto (ingreso inicial de inventario)
+      description: 'Crea el lote y registra el movimiento de tipo INGRESO. Publica el evento `LOTE_INGRESADO` en el tópico
+        `inventario-eventos`, particionado por lote_id.
+
+        '
+      operationId: crearLote
+      parameters:
+      - $ref: '#/components/parameters/ProductoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoteInput'
+      responses:
+        '201':
+          description: Lote creado y evento publicado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lote'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /lotes/{loteId}:
+    get:
+      tags:
+      - Lotes
+      summary: Consultar un lote por id
+      operationId: obtenerLote
+      parameters:
+      - $ref: '#/components/parameters/LoteId'
+      responses:
+        '200':
+          description: Lote encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lote'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /lotes/{loteId}/movimientos:
+    get:
+      tags:
+      - Movimientos
+      summary: Listar el historial de movimientos de un lote
+      operationId: listarMovimientosPorLote
+      parameters:
+      - $ref: '#/components/parameters/LoteId'
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Historial de movimientos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Movimiento'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /lotes/{loteId}/ventas:
+    post:
+      tags:
+      - Movimientos
+      summary: Registrar una venta sobre un lote
+      description: 'Valida RF8/RNF7: si el lote está vencido (fecha_vencimiento < fecha actual del sistema), la operación
+        se rechaza con 409 y no se descuenta stock ni se publica el evento. Si es válida, descuenta stock y publica `MOVIMIENTO_VENTA`
+        en Kafka.
+
+        '
+      operationId: registrarVenta
+      parameters:
+      - $ref: '#/components/parameters/LoteId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MovimientoInput'
+      responses:
+        '201':
+          description: Venta registrada y evento publicado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movimiento'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: El lote está vencido; la venta fue rechazada (RF8)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Cantidad solicitada mayor al stock disponible del lote
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /lotes/{loteId}/devoluciones:
+    post:
+      tags:
+      - Movimientos
+      summary: Registrar una devolución de un lote al proveedor
+      description: 'Registra un movimiento de tipo DEVOLUCION, descuenta stock del lote y publica el evento `MOVIMIENTO_DEVOLUCION`
+        en Kafka.
+
+        '
+      operationId: registrarDevolucion
+      parameters:
+      - $ref: '#/components/parameters/LoteId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MovimientoInput'
+      responses:
+        '201':
+          description: Devolución registrada y evento publicado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movimiento'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Cantidad solicitada mayor al stock disponible del lote
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+components:
+  parameters:
+    ProductoId:
+      name: productoId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+      example: 10
+    LoteId:
+      name: loteId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+      example: 501
+    Page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    Size:
+      name: size
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+  responses:
+    BadRequest:
+      description: Solicitud inválida (validación de campos)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Token JWT ausente, inválido, expirado o mal formado.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: El token JWT es válido, pero no tiene permisos suficientes.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      properties:
+        codigo:
+          type: string
+          example: LOTE_VENCIDO
+        mensaje:
+          type: string
+          example: No es posible vender un lote vencido.
+        timestamp:
+          type: string
+          format: date-time
+    ProveedorInput:
+      type: object
+      required:
+      - nombre
+      - nit
+      properties:
+        nombre:
+          type: string
+          example: Laboratorios Genfar S.A.
+        nit:
+          type: string
+          example: 900123456-1
+        contacto:
+          type: string
+          example: ventas@genfar.com
+    Proveedor:
+      allOf:
+      - $ref: '#/components/schemas/ProveedorInput'
+      - type: object
+        properties:
+          id:
+            type: integer
+            format: int64
+            example: 3
+    ProductoInput:
+      type: object
+      required:
+      - nombre
+      - principio_activo
+      - proveedor_id
+      properties:
+        nombre:
+          type: string
+          example: Acetaminofén 500mg x 20 tabletas
+        principio_activo:
+          type: string
+          example: Acetaminofén
+        proveedor_id:
+          type: integer
+          format: int64
+          example: 3
+    Producto:
+      allOf:
+      - $ref: '#/components/schemas/ProductoInput'
+      - type: object
+        properties:
+          id:
+            type: integer
+            format: int64
+            example: 10
+    LoteInput:
+      type: object
+      required:
+      - numero_lote
+      - fecha_vencimiento
+      - cantidad_inicial
+      properties:
+        numero_lote:
+          type: string
+          example: L-2026-0456
+        fecha_vencimiento:
+          type: string
+          format: date
+          example: '2026-12-01'
+        cantidad_inicial:
+          type: integer
+          minimum: 1
+          example: 200
+    Lote:
+      allOf:
+      - $ref: '#/components/schemas/LoteInput'
+      - type: object
+        properties:
+          id:
+            type: integer
+            format: int64
+            example: 501
+          producto_id:
+            type: integer
+            format: int64
+            example: 10
+          stock_actual:
+            type: integer
+            example: 200
+          creado_en:
+            type: string
+            format: date-time
+    MovimientoInput:
+      type: object
+      required:
+      - cantidad
+      properties:
+        cantidad:
+          type: integer
+          minimum: 1
+          example: 5
+        observacion:
+          type: string
+          example: Venta mostrador
+    Movimiento:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 9001
+        lote_id:
+          type: integer
+          format: int64
+          example: 501
+        tipo:
+          type: string
+          enum:
+          - INGRESO
+          - VENTA
+          - DEVOLUCION
+          example: VENTA
+        cantidad:
+          type: integer
+          example: 5
+        fecha_hora:
+          type: string
+          format: date-time
+        evento_uuid:
+          type: string
+          format: uuid
+          description: Identificador único usado por Vencimientos para idempotencia (RNF5).
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT enviado en el encabezado Authorization con el formato 'Bearer <token>'. El emisor, firma, expiración,
+        issuer y audience deben ser validados por la implementación de seguridad.
+security:
+- bearerAuth: []

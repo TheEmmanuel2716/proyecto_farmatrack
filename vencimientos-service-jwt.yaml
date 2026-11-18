@@ -1,0 +1,261 @@
+openapi: 3.0.3
+info:
+  title: FarmaTrack — Servicio Vencimientos y Alertas
+  description: 'API REST de solo lectura para consultar el estado de vencimiento de los lotes y las alertas generadas. El
+    estado se calcula a partir de los eventos consumidos del tópico Kafka `inventario-eventos` y de un job programado que
+    se ejecuta cada hora (RF6, RF7). Este servicio es consumido internamente por el Gateway GraphQL.
+
+    '
+  version: 1.0.0
+  contact:
+    name: Equipo 3 — FarmaTrack
+servers:
+- url: http://localhost:8082
+  description: Entorno local (docker compose)
+tags:
+- name: Estado de lotes
+- name: Alertas
+paths:
+  /lotes/{loteId}/estado:
+    get:
+      tags:
+      - Estado de lotes
+      summary: Consultar el estado de vencimiento calculado de un lote
+      operationId: obtenerEstadoLote
+      parameters:
+      - $ref: '#/components/parameters/LoteId'
+      responses:
+        '200':
+          description: Estado actual del lote
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoteEstado'
+        '404':
+          description: 'No se ha recibido ningún evento para este lote_id (aún no ha sido sincronizado desde Inventario)
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /alertas:
+    get:
+      tags:
+      - Alertas
+      summary: Listar las alertas activas del inventario
+      operationId: listarAlertas
+      parameters:
+      - name: atendida
+        in: query
+        required: false
+        description: Filtra por alertas atendidas o no atendidas
+        schema:
+          type: boolean
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Alertas encontradas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Alerta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /alertas/{alertaId}:
+    get:
+      tags:
+      - Alertas
+      summary: Consultar una alerta por id
+      operationId: obtenerAlerta
+      parameters:
+      - $ref: '#/components/parameters/AlertaId'
+      responses:
+        '200':
+          description: Alerta encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alerta'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    patch:
+      tags:
+      - Alertas
+      summary: Marcar una alerta como atendida
+      description: 'Único endpoint de escritura del servicio; permite al droguista marcar que ya gestionó una alerta (p. ej.,
+        ya negoció la devolución con el proveedor). No afecta el estado del lote, solo el seguimiento de la alerta.
+
+        '
+      operationId: marcarAlertaAtendida
+      parameters:
+      - $ref: '#/components/parameters/AlertaId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - atendida
+              properties:
+                atendida:
+                  type: boolean
+                  example: true
+      responses:
+        '200':
+          description: Alerta actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alerta'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+components:
+  parameters:
+    LoteId:
+      name: loteId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+      example: 501
+    AlertaId:
+      name: alertaId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+      example: 77
+    Page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    Size:
+      name: size
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+  responses:
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Token JWT ausente, inválido, expirado o mal formado.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: El token JWT es válido, pero no tiene permisos suficientes.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      properties:
+        codigo:
+          type: string
+          example: LOTE_NO_SINCRONIZADO
+        mensaje:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+    LoteEstado:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 850
+        lote_id:
+          type: integer
+          format: int64
+          description: Referencia lógica al lote en el esquema `inventario` (sin FK física)
+          example: 501
+        stock_actual:
+          type: integer
+          example: 195
+        estado:
+          type: string
+          enum:
+          - VIGENTE
+          - PROXIMO_A_VENCER
+          - VENCIDO
+          example: PROXIMO_A_VENCER
+        dias_para_vencer:
+          type: integer
+          example: 12
+        actualizado_en:
+          type: string
+          format: date-time
+    Alerta:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 77
+        lote_id:
+          type: integer
+          format: int64
+          example: 501
+        tipo_alerta:
+          type: string
+          enum:
+          - PROXIMO_A_VENCER_30
+          - PROXIMO_A_VENCER_15
+          - PROXIMO_A_VENCER_7
+          - VENCIDO
+          example: PROXIMO_A_VENCER_15
+        dias_restantes:
+          type: integer
+          example: 15
+        generada_en:
+          type: string
+          format: date-time
+        atendida:
+          type: boolean
+          example: false
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT enviado en el encabezado Authorization con el formato 'Bearer <token>'. El emisor, firma, expiración,
+        issuer y audience deben ser validados por la implementación de seguridad.
+security:
+- bearerAuth: []

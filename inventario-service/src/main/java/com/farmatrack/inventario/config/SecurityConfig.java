@@ -1,0 +1,28 @@
+package com.farmatrack.inventario.config;
+
+import com.nimbusds.jose.jwk.source.ImmutableSecret;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.*;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.oauth2.jwt.*;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationProvider;
+import org.springframework.security.web.SecurityFilterChain;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+
+@Configuration
+public class SecurityConfig {
+    @Bean
+    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http.authorizeHttpRequests(a -> a.requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll().anyRequest().authenticated())
+                .oauth2ResourceServer(o -> o.jwt(jwt -> {}));
+        return http.build();
+    }
+    @Bean
+    JwtDecoder jwtDecoder(@Value("${security.jwt.secret}") String secret) {
+        // Development decoder. Once the IdP is defined, replace this bean with
+        // JwtDecoders.fromIssuerLocation(issuer) and validate the real audience.
+        byte[] key = secret.getBytes(StandardCharsets.UTF_8);
+        return NimbusJwtDecoder.withSecretKey(new SecretKeySpec(key, "HmacSHA256")).build();
+    }
+}
